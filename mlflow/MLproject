@@ -1,0 +1,30 @@
+name: credit-risk-prediction
+
+conda_env: conda.yaml
+
+entry_points:
+  main:
+    parameters:
+      model_type: {type: string, default: "lightgbm"}
+      tune: {type: bool, default: false}
+      n_trials: {type: int, default: 50}
+      data_path: {type: string, default: "data/raw/train.csv"}
+    command: "python scripts/train.py --model {model_type} --n-trials {n_trials} --data-path {data_path}"
+
+  train:
+    parameters:
+      model_type: {type: string, default: "lightgbm"}
+      tune: {type: bool, default: false}
+    command: "python scripts/train.py --model {model_type}"
+
+  evaluate:
+    parameters:
+      model_name: {type: string}
+      stage: {type: string, default: "production"}
+    command: "python scripts/evaluate.py --model-name {model_name} --stage {stage} --shap"
+
+  pipeline:
+    parameters:
+      model_type: {type: string, default: "lightgbm"}
+      tune: {type: bool, default: true}
+    command: "python scripts/run_pipeline.py --model-type {model_type} --tune"

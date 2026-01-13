@@ -1,0 +1,315 @@
+# =============================================================================
+# Credit Risk Prediction - Configuration File
+# Production-grade ML Pipeline Configuration
+# =============================================================================
+
+# ========================= Project Settings =========================
+project:
+  name: "credit-risk-prediction"
+  version: "1.0.0"
+  description: "Production ML pipeline for credit risk assessment"
+  author: "Data Science Team"
+
+# ========================= Data Configuration =========================
+data:
+  raw:
+    train_path: "data/raw/train.csv"
+    test_path: "data/raw/test.csv"
+    s3_bucket: "credit-risk-ml-pipeline"
+    s3_prefix: "data/raw/"
+  
+  processed:
+    train_path: "data/processed/train_processed.parquet"
+    test_path: "data/processed/test_processed.parquet"
+    s3_prefix: "data/processed/"
+  
+  validation:
+    test_size: 0.2
+    random_state: 42
+    stratify: true
+
+# ========================= Feature Engineering =========================
+features:
+  target_column: "loan_status"
+  target_mapping:
+    "Fully Paid": 1
+    "Charged Off": 0
+  
+  categorical_features:
+    - "term"
+    - "grade"
+    - "emp_length"
+    - "home_ownership"
+    - "verification_status"
+    - "purpose"
+    - "pub_rec"
+    - "initial_list_status"
+    - "pub_rec_bankruptcies"
+  
+  numerical_features:
+    - "int_rate"
+    - "annual_inc"
+    - "dti"
+    - "revol_util"
+    - "mort_acc"
+    - "loan_to_income"
+    - "total_interest_owed"
+    - "installment_to_income_ratio"
+    - "active_credit_pct"
+    - "credit_age"
+  
+  drop_columns:
+    - "Unnamed: 0"
+    - "emp_title"
+    - "title"
+    - "address"
+    - "issue_d"
+    - "sub_grade"
+    - "application_type"
+    - "revol_bal"
+  
+  engineered_features:
+    loan_to_income:
+      formula: "loan_amnt / annual_inc"
+    total_interest_owed:
+      formula: "loan_amnt * (int_rate / 100)"
+    installment_to_income_ratio:
+      formula: "installment / (annual_inc / 12)"
+    active_credit_pct:
+      formula: "open_acc / total_acc"
+    credit_age:
+      formula: "current_year - earliest_cr_line.year"
+
+# ========================= Model Configuration =========================
+model:
+  default: "lightgbm"
+  
+  lightgbm:
+    objective: "binary"
+    metric: "auc"
+    boosting_type: "gbdt"
+    n_estimators: 1000
+    max_depth: 20
+    num_leaves: 80
+    learning_rate: 0.07
+    subsample: 0.95
+    colsample_bytree: 0.8
+    reg_alpha: 0.3
+    reg_lambda: 0.8
+    min_child_samples: 25
+    min_split_gain: 0.1
+    random_state: 42
+    n_jobs: -1
+    verbose: -1
+  
+  xgboost:
+    objective: "binary:logistic"
+    eval_metric: "auc"
+    n_estimators: 722
+    max_depth: 5
+    learning_rate: 0.05
+    subsample: 1.0
+    colsample_bytree: 0.6
+    gamma: 0.2
+    reg_alpha: 0.1
+    reg_lambda: 0
+    random_state: 42
+    tree_method: "hist"  # Use 'gpu_hist' for GPU
+    n_jobs: -1
+    verbosity: 0
+
+# ========================= Hyperparameter Tuning =========================
+hyperparameter_tuning:
+  method: "optuna"  # Options: optuna, randomized_search, grid_search
+  n_trials: 100
+  cv_folds: 5
+  scoring: "roc_auc"
+  timeout: 3600  # seconds
+  
+  lightgbm_search_space:
+    n_estimators:
+      type: "int"
+      low: 100
+      high: 2000
+    max_depth:
+      type: "int"
+      low: 3
+      high: 30
+    num_leaves:
+      type: "int"
+      low: 20
+      high: 150
+    learning_rate:
+      type: "float"
+      low: 0.01
+      high: 0.3
+      log: true
+    subsample:
+      type: "float"
+      low: 0.5
+      high: 1.0
+    colsample_bytree:
+      type: "float"
+      low: 0.5
+      high: 1.0
+    reg_alpha:
+      type: "float"
+      low: 0.0
+      high: 10.0
+    reg_lambda:
+      type: "float"
+      low: 0.0
+      high: 10.0
+
+# ========================= Training Configuration =========================
+training:
+  early_stopping_rounds: 50
+  eval_metric: "auc"
+  use_class_weights: true
+  random_state: 42
+  
+  callbacks:
+    - type: "early_stopping"
+      patience: 50
+    - type: "model_checkpoint"
+      save_best_only: true
+    - type: "learning_rate_scheduler"
+      factor: 0.5
+      patience: 10
+
+# ========================= Evaluation Configuration =========================
+evaluation:
+  metrics:
+    - "accuracy"
+    - "precision"
+    - "recall"
+    - "f1"
+    - "roc_auc"
+    - "pr_auc"
+    - "log_loss"
+  
+  threshold: 0.5
+  threshold_optimization:
+    enabled: true
+    metric: "f1"
+  
+  cross_validation:
+    enabled: true
+    n_folds: 5
+    stratified: true
+
+# ========================= SHAP Configuration =========================
+shap:
+  enabled: true
+  max_display: 20
+  sample_size: 1000
+  plot_types:
+    - "summary_bar"
+    - "summary_dot"
+    - "dependence"
+    - "force"
+    - "waterfall"
+  save_values: true
+
+# ========================= MLflow Configuration =========================
+mlflow:
+  tracking_uri: "${MLFLOW_TRACKING_URI}"
+  experiment_name: "credit-risk-prediction"
+  run_name_prefix: "credit_risk"
+  
+  log_params: true
+  log_metrics: true
+  log_model: true
+  log_artifacts: true
+  
+  artifact_location: "s3://credit-risk-ml-pipeline/mlflow-artifacts/"
+  
+  tags:
+    project: "credit-risk"
+    team: "data-science"
+    environment: "${APP_ENV}"
+
+# ========================= AWS Configuration =========================
+aws:
+  region: "${AWS_REGION}"
+  
+  s3:
+    bucket: "credit-risk-ml-pipeline"
+    data_prefix: "data/"
+    model_prefix: "models/"
+    artifact_prefix: "artifacts/"
+  
+  redshift:
+    cluster_identifier: "credit-risk-cluster"
+    database: "credit_risk_db"
+    schema: "ml_pipeline"
+    iam_role: "${REDSHIFT_IAM_ROLE}"
+  
+  glue:
+    database: "credit_risk_catalog"
+    crawler_name: "credit-risk-crawler"
+    job_name: "credit-risk-etl"
+  
+  sagemaker:
+    training_instance_type: "ml.m5.xlarge"
+    inference_instance_type: "ml.t2.medium"
+    model_name: "credit-risk-model"
+    endpoint_name: "credit-risk-endpoint"
+  
+  lambda:
+    function_name: "credit-risk-inference"
+    memory_size: 1024
+    timeout: 300
+  
+  athena:
+    workgroup: "primary"
+    output_location: "s3://credit-risk-ml-pipeline/athena-results/"
+
+# ========================= API Configuration =========================
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  reload: false
+  
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 100
+  
+  authentication:
+    enabled: true
+    api_key_header: "X-API-Key"
+
+# ========================= Logging Configuration =========================
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  handlers:
+    console:
+      enabled: true
+      level: "INFO"
+    file:
+      enabled: true
+      level: "DEBUG"
+      path: "logs/credit_risk.log"
+      max_size: "10MB"
+      backup_count: 5
+  
+  structured:
+    enabled: true
+    format: "json"
+
+# ========================= Monitoring Configuration =========================
+monitoring:
+  prometheus:
+    enabled: true
+    port: 9090
+  
+  alerts:
+    model_drift:
+      threshold: 0.1
+    prediction_latency:
+      threshold_ms: 100
+    error_rate:
+      threshold: 0.01
