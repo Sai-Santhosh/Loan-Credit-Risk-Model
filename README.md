@@ -407,18 +407,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 📧 Contact
-
-**Data Science Team**
-- Email: datascience@company.com
-- GitHub: [@your-username](https://github.com/your-username)
-
----
-
-<div align="center">
-
-**Built with ❤️ for the Financial Services Industry**
-
 *Transforming complex banking processes into intelligent software solutions*
 
 </div>
